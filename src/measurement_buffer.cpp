@@ -100,6 +100,7 @@ void MeasurementBuffer::BufferROSCloud(const sensor_msgs::PointCloud2& cloud)
 
   try
   {
+    auto total_time = ros::Time::now();
     // transform into global frame
     geometry_msgs::PoseStamped  local_pose, global_pose;
     local_pose.pose.position.x=0;
@@ -142,16 +143,28 @@ void MeasurementBuffer::BufferROSCloud(const sensor_msgs::PointCloud2& cloud)
     point_cloud_ptr cld_global(new sensor_msgs::PointCloud2());
     geometry_msgs::TransformStamped tf_stamped = _buffer.lookupTransform( \
                  _global_frame, cloud.header.frame_id, cloud.header.stamp);
-    tf2::doTransform (cloud, *cld_global, tf_stamped);
-
-    pcl::PCLPointCloud2::Ptr cloud_pcl (new pcl::PCLPointCloud2 ());
+    //tf2::doTransform (cloud, *cld_global, tf_stamped);
+    auto transform_time = ros::Time::now();
+    Eigen::Affine3f trans(Eigen::Translation3f(tf_stamped.transform.translation.x, tf_stamped.transform.translation.y, tf_stamped.transform.translation.z)
+                          * Eigen::Quaternionf(tf_stamped.transform.rotation.w, tf_stamped.transform.rotation.x, tf_stamped.transform.rotation.y, tf_stamped.transform.rotation.z ));
+    pcl::PCLPointCloud2::Ptr cloud_pcl (new pcl::PCLPointCloud2 );
+    pcl::PCLPointCloud2 tmp_pcl;
+    pcl::PointCloud<pcl::PointXYZRGB> pretransformed_pcl;
+    pcl::PointCloud<pcl::PointXYZRGB> transformed_pcl;
     pcl::PCLPointCloud2::Ptr cloud_filtered (new pcl::PCLPointCloud2 ());
 
-    pcl_conversions::toPCL(*cld_global, *cloud_pcl);
-
-    // remove points that are below or above our height restrictions, and
+		pcl_conversions::toPCL(cloud, tmp_pcl);
+    pcl::fromPCLPointCloud2(tmp_pcl,pretransformed_pcl);
+    
+    auto time = ros::Time::now();
+    // pretransformed_pcl->is_dense = true;
+    pcl::transformPointCloud(pretransformed_pcl,transformed_pcl,trans);
+    pcl::toPCLPointCloud2(transformed_pcl,*cloud_pcl);
+   
+	 // remove points that are below or above our height restrictions, and
     // in the same time, remove NaNs and if user wants to use it, combine with a
-    if ( _voxel_filter )
+    time = ros::Time::now();
+		if ( _voxel_filter )
     {
       pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
       sor.setInputCloud (cloud_pcl);
@@ -175,6 +188,7 @@ void MeasurementBuffer::BufferROSCloud(const sensor_msgs::PointCloud2& cloud)
       pass_through_filter.filter(*cloud_filtered);
     }
 
+    time = ros::Time::now();
     pcl_conversions::fromPCL(*cloud_filtered, *cld_global);
     _observation_list.front()._cloud = cld_global;
   }

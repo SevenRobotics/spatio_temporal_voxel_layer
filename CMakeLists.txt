@@ -1,8 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(spatio_temporal_voxel_layer)
 
-add_definitions (-std=c++17)
-
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
 find_package(catkin REQUIRED COMPONENTS
@@ -59,6 +58,7 @@ find_package(OpenVDB REQUIRED)
 find_package(TBB REQUIRED)
 remove_definitions(-DDISABLE_LIBUSB-1.0)
 find_package(Eigen3 REQUIRED)
+find_package(PCL REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system thread)
 include_directories(
     include
